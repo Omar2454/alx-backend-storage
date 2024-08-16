@@ -46,42 +46,23 @@ def call_history(method: Callable) -> Callable:
 
 
 def replay(method: Callable) -> None:
+    # sourcery skip: use-fstring-for-concatenation, use-fstring-for-formatting
     """
-    Replays the history of calls to a specified function by retrieving the stored inputs and outputs from Redis.
-
+    Replays the history of a function
     Args:
-        method (Callable): The function whose call history is to be replayed.
-
+        method: The function to be decorated
     Returns:
-        None: The function outputs the call history, including the number of times the method was called,
-              the inputs passed to it, and the outputs it produced.
+        None
     """
-    # Get the fully qualified name of the method (e.g., 'Cache.store')
     name = method.__qualname__
-
-    # Create a Redis client instance to interact with the Redis server
     cache = redis.Redis()
-
-    # Retrieve the number of times the method was called from Redis
-    # Decode the retrieved value from bytes to a UTF-8 string
     calls = cache.get(name).decode("utf-8")
-
-    # Print the number of times the method was called
     print("{} was called {} times:".format(name, calls))
-
-    # Retrieve the list of inputs and outputs from Redis
-    # 'lrange' retrieves all elements from the list stored at the specified key
     inputs = cache.lrange(name + ":inputs", 0, -1)
     outputs = cache.lrange(name + ":outputs", 0, -1)
-
-    # Iterate over paired inputs and outputs using zip
     for i, o in zip(inputs, outputs):
-        # Decode both input and output from bytes to UTF-8 strings
-        decoded_input = i.decode('utf-8')
-        decoded_output = o.decode('utf-8')
-
-        # Print the method name, input arguments, and output in the specified format
-        print("{}(*{}) -> {}".format(name, decoded_input, decoded_output))
+        print("{}(*{}) -> {}".format(name, i.decode('utf-8'),
+                                     o.decode('utf-8')))
 
 
 class Cache:
