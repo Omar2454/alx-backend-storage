@@ -47,30 +47,47 @@ def call_history(method: Callable) -> Callable:
 
 def replay(method: Callable) -> None:
     """
-    Replays the history of a function
+    Replays the history of calls to a specific method by retrieving the data
+    stored in Redis.
+
     Args:
-        method: The function to be decorated
+        method (Callable): The function whose history of calls needs to be replayed.
+
     Returns:
-        None
+        None: This function prints the history of the method calls, including 
+              the arguments passed to the method and the outputs produced.
     """
+    # Get the fully qualified name of the method (e.g., 'Cache.store')
     name = method.__qualname__
+
+    # Create a Redis client to interact with the Redis server
     cache = redis.Redis()
 
-    # Fetch the number of calls
+    # Retrieve the number of times the method was called from Redis
     calls = cache.get(name)
+    
+    # If the method has never been called, Redis will return None
     if calls is None:
         print(f"{name} was never called.")
         return
 
+    # Decode the number of calls from bytes to a UTF-8 string, then convert to an integer
     calls = int(calls.decode("utf-8"))
     print(f"{name} was called {calls} times:")
 
-    # Fetch the inputs and outputs
+    # Retrieve the list of inputs and outputs from Redis
+    # `lrange` retrieves all elements of the list stored at the specified key
     inputs = cache.lrange(f"{name}:inputs", 0, -1)
     outputs = cache.lrange(f"{name}:outputs", 0, -1)
 
+    # Iterate over the paired inputs and outputs to display them
     for i, o in zip(inputs, outputs):
-        print(f"{name}(*{i.decode('utf-8')}) -> {o.decode('utf-8')}")
+        # Decode both the input and output from bytes to UTF-8 strings
+        decoded_input = i.decode('utf-8')
+        decoded_output = o.decode('utf-8')
+        
+        # Print the method name, input arguments, and output in the specified format
+        print(f"{name}(*{decoded_input}) -> {decoded_output}")
 
 
 class Cache:
