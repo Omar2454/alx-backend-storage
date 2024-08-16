@@ -45,17 +45,20 @@ def call_history(method: Callable) -> Callable:
     return wrapper
 
 
+import redis
+from typing import Callable
+
 def replay(method: Callable) -> None:
     """
-    Replays the history of calls to a specific method by retrieving the data
-    stored in Redis.
+    Replays the history of a function by retrieving and displaying the 
+    stored inputs and outputs from Redis.
 
     Args:
-        method (Callable): The function whose history of calls needs to be replayed.
+        method (Callable): The function whose call history you want to replay.
 
     Returns:
-        None: This function prints the history of the method calls, including 
-              the arguments passed to the method and the outputs produced.
+        None: The function prints the call history, including the number of times
+              the method was called, the inputs passed, and the outputs returned.
     """
     # Get the fully qualified name of the method (e.g., 'Cache.store')
     name = method.__qualname__
@@ -64,30 +67,26 @@ def replay(method: Callable) -> None:
     cache = redis.Redis()
 
     # Retrieve the number of times the method was called from Redis
-    calls = cache.get(name)
-    
-    # If the method has never been called, Redis will return None
-    if calls is None:
-        print(f"{name} was never called.")
-        return
+    # Decode the result from bytes to a UTF-8 string
+    calls = cache.get(name).decode("utf-8")
 
-    # Decode the number of calls from bytes to a UTF-8 string, then convert to an integer
-    calls = int(calls.decode("utf-8"))
-    print(f"{name} was called {calls} times:")
+    # Print the number of calls made to the method
+    print("{} was called {} times:".format(name, calls))
 
     # Retrieve the list of inputs and outputs from Redis
     # `lrange` retrieves all elements of the list stored at the specified key
-    inputs = cache.lrange(f"{name}:inputs", 0, -1)
-    outputs = cache.lrange(f"{name}:outputs", 0, -1)
+    inputs = cache.lrange(name + ":inputs", 0, -1)
+    outputs = cache.lrange(name + ":outputs", 0, -1)
 
-    # Iterate over the paired inputs and outputs to display them
+    # Iterate over the paired inputs and outputs using zip
     for i, o in zip(inputs, outputs):
         # Decode both the input and output from bytes to UTF-8 strings
         decoded_input = i.decode('utf-8')
         decoded_output = o.decode('utf-8')
-        
+
         # Print the method name, input arguments, and output in the specified format
-        print(f"{name}(*{decoded_input}) -> {decoded_output}")
+        print("{}(*{}) -> {}".format(name, decoded_input, decoded_output))
+
 
 
 class Cache:
